@@ -1,4 +1,4 @@
-name: Solve F6 On C101 (V2 - Cluster Random Uniform)
+name: Solve F6 On C201 (V5-V6 - Cluster Random Uniform)
 # chay lan 2
 on:
   push:
@@ -62,7 +62,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build instance matrix for C101 in v2 of 3 folders
+      - name: Build instance matrix for C201 in v5/v6 of 3 folders
         id: mk
         env:
           A_VALUES: ${{ github.event.inputs.a_values || '4,8' }}
@@ -99,16 +99,19 @@ jobs:
               raise SystemExit("No L values provided (L_VALUES is empty)")
 
           roots = [
-              ("cluster", "v2", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v2")),
-              ("random", "v2", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v2")),
-              ("uniform", "v2", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v2")),
+              ("cluster", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v5")),
+              ("cluster", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v6")),
+              ("random", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v5")),
+              ("random", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v6")),
+              ("uniform", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v5")),
+              ("uniform", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v6")),
           ]
 
           base_tasks = []
           for group, version, root in roots:
               if not root.is_dir():
                   raise SystemExit(f"Missing folder: {root}")
-              for dat in sorted(root.glob("C101*.dat")):
+              for dat in sorted(root.glob("C201*.dat")):
                   base_tasks.append(
                       {
                           "group": group,
@@ -120,7 +123,7 @@ jobs:
                   )
 
           if not base_tasks:
-              raise SystemExit("No C101*.dat instances found in v2 folders")
+              raise SystemExit("No C201*.dat instances found in v5/v6 folders")
 
           tasks = []
           for t in base_tasks:
@@ -213,7 +216,7 @@ jobs:
           if not isinstance(tasks, list):
               raise SystemExit("SHARD_TASKS is not a list")
           print(f"[SHARD] id={shard_id} size={len(tasks)}")
-          max_workers = 2
+          max_workers = 1
           print(f"[SHARD] parallel workers={max_workers}")
           try:
               solver_limit_sec = float(os.environ.get("SOLVER_TIME_LIMIT_SEC", "7200"))
@@ -534,7 +537,7 @@ jobs:
         id: recompute
         run: |
           set +e
-          FIX_DEMAND_EQUAL1=1 N_TRUCK=2 N_DRONE=2 SOLVER_BIN=C_Version/read_data_f6 PARALLEL_JOBS=8 \
+          FIX_DEMAND_EQUAL1=1 N_TRUCK=2 N_DRONE=2 SOLVER_BIN=C_Version/read_data_f6 PARALLEL_JOBS=1 \
             python recompute_metrics_from_solutions_csv.py summary/solve_f6_from_augmented_inits_summary.csv
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
@@ -595,7 +598,7 @@ jobs:
       - name: Upload summary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: solve-f6-c101-v2-three-folders-summary
+          name: solve-f6-c201-v5-v6-three-folders-summary
           path: |
             summary/solve_f6_from_augmented_inits_summary.csv
             batch_init_ats_improved_with_multivisit_recompute_failures.csv
