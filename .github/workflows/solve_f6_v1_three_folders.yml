@@ -1,4 +1,4 @@
-name: Solve F6 On RC101 (V5 V6 - Cluster Random Uniform)
+name: Solve F6 On RC101 (V7 V8 - Cluster Random Uniform)
 
 on:
   push:
@@ -62,7 +62,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build instance matrix for RC101 in v5-v6 of 3 folders
+      - name: Build instance matrix for RC101 in v7-v8 of 3 folders
         id: mk
         env:
           A_VALUES: ${{ github.event.inputs.a_values || '4,8' }}
@@ -99,12 +99,12 @@ jobs:
               raise SystemExit("No L values provided (L_VALUES is empty)")
 
           roots = [
-              ("cluster", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v5")),
-              ("cluster", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v6")),
-              ("random", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v5")),
-              ("random", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v6")),
-              ("uniform", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v5")),
-              ("uniform", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v6")),
+              ("cluster", "v7", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v7")),
+              ("cluster", "v8", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v8")),
+              ("random", "v7", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v7")),
+              ("random", "v8", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v8")),
+              ("uniform", "v7", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v7")),
+              ("uniform", "v8", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v8")),
           ]
 
           base_tasks = []
@@ -123,7 +123,7 @@ jobs:
                   )
 
           if not base_tasks:
-              raise SystemExit("No RC101*.dat instances found in v5-v6 folders")
+              raise SystemExit("No RC101*.dat instances found in v7-v8 folders")
 
           tasks = []
           for t in base_tasks:
@@ -598,7 +598,7 @@ jobs:
       - name: Upload summary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: solve-f6-rc101-v5-v6-three-folders-summary
+          name: solve-f6-rc101-v7-v8-three-folders-summary
           path: |
             summary/solve_f6_from_augmented_inits_summary.csv
             batch_init_ats_improved_with_multivisit_recompute_failures.csv
