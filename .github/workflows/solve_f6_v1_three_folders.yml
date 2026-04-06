@@ -98,13 +98,13 @@ jobs:
               raise SystemExit("No L values provided (L_VALUES is empty)")
 
           roots = [
-              ("demand_random_30", pathlib.Path("test_data/data_demand_random/30")),
-              ("demand_random_50", pathlib.Path("test_data/data_demand_random/50")),
-              ("demand_random_100", pathlib.Path("test_data/data_demand_random/100")),
+              ("demand_random_30", pathlib.Path("test_data/data_demand_random/30"), 2, 2),
+              ("demand_random_50", pathlib.Path("test_data/data_demand_random/50"), 2, 2),
+              ("demand_random_100", pathlib.Path("test_data/data_demand_random/100"), 3, 3),
           ]
 
           base_tasks = []
-          for group, root in roots:
+          for group, root, n_truck, n_drone in roots:
               if not root.is_dir():
                   raise SystemExit(f"Missing folder: {root}")
               for dat in sorted(root.glob("*.dat")):
@@ -114,6 +114,8 @@ jobs:
                           "instance_name": dat.stem,
                           "dat": str(dat),
                           "seed": "",
+                          "n_truck": n_truck,
+                          "n_drone": n_drone,
                       }
                   )
 
@@ -187,8 +189,6 @@ jobs:
           LS_SHAKE_ON_STAGNATION: ${{ github.event.inputs.ls_shake_on_stagnation || '1' }}
           LS_MAX_SHAKES: ${{ github.event.inputs.ls_max_shakes || '500' }}
           LS_MAX_APPLIED: ${{ github.event.inputs.ls_max_applied || '-1' }}
-          N_TRUCK: "2"
-          N_DRONE: "2"
           SKIP_ATS: "0"
           SOL_OUT_DIR: run_outputs
         run: |
@@ -339,6 +339,8 @@ jobs:
               m_d = str(t["A"])
               l_d = str(t["L"])
               group_name = str(t.get("group") or "")
+              n_truck = int(t.get("n_truck", 2))
+              n_drone = int(t.get("n_drone", 2))
 
               print(f"[RUN] {run_name}")
               print(f"DAT={dat_path}")
@@ -348,7 +350,7 @@ jobs:
               print(f"SOLVER_TIME_LIMIT_SEC={solver_limit_str}")
               print(f"ATS_SEG={os.environ['ATS_SEG']} ATS_DIV={os.environ['ATS_DIV']} ATS_MAX_ITERS={os.environ['ATS_MAX_ITERS']}")
               print(f"LS_SHAKE_ON_STAGNATION={os.environ['LS_SHAKE_ON_STAGNATION']} LS_MAX_SHAKES={os.environ['LS_MAX_SHAKES']} LS_MAX_APPLIED={os.environ['LS_MAX_APPLIED']}")
-              print(f"N_TRUCK={os.environ['N_TRUCK']} N_DRONE={os.environ['N_DRONE']}")
+              print(f"N_TRUCK={n_truck} N_DRONE={n_drone}")
               print(f"SKIP_ATS={os.environ['SKIP_ATS']}")
 
               log_path = pathlib.Path(f"run_logs/{run_name}.log")
@@ -357,6 +359,8 @@ jobs:
               env = os.environ.copy()
               env["SOLVER_TIME_LIMIT_SEC"] = solver_limit_str
               env["SOL_OUT_DIR"] = str(run_out_dir)
+              env["N_TRUCK"] = str(n_truck)
+              env["N_DRONE"] = str(n_drone)
               cmd = ["C_Version/read_data_f6", dat_path, m_d, l_d]
               if seed_path:
                   cmd.append(seed_path)
@@ -411,6 +415,8 @@ jobs:
                   "log": str(log_path),
                   "Group": group,
                   "beta": beta,
+                  "n_truck": n_truck,
+                  "n_drone": n_drone,
                   "instance_name": instance_name,
                   "instance_run_name": run_name,
                   "dat_path": dat_path,
@@ -509,6 +515,8 @@ jobs:
               "seed_path",
               "Group",
               "beta",
+              "n_truck",
+              "n_drone",
           ]
           rows = sorted(
               rows,
@@ -534,7 +542,7 @@ jobs:
         id: recompute
         run: |
           set +e
-          N_TRUCK=2 N_DRONE=2 SOLVER_BIN=C_Version/read_data_f6 PARALLEL_JOBS=1 \
+          SOLVER_BIN=C_Version/read_data_f6 PARALLEL_JOBS=1 \
             python recompute_metrics_from_solutions_csv.py summary/solve_f6_from_augmented_inits_summary.csv
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"

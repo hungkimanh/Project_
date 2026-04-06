@@ -250,7 +250,12 @@ def compute_solution_stats(solution: Any, instance: Dict[str, Any]) -> Dict[str,
 
 
 def validate_with_stats(
-    instance: str, a: str, l: str, solution_text: str
+    instance: str,
+    a: str,
+    l: str,
+    solution_text: str,
+    n_truck: Optional[int] = None,
+    n_drone: Optional[int] = None,
 ) -> Tuple[
     bool,
     str,
@@ -277,6 +282,10 @@ def validate_with_stats(
         env = dict(os.environ)
         env["VALIDATE_ONLY"] = "1"
         env.setdefault("SOLVER_TIME_LIMIT_SEC", "5")
+        if n_truck is not None:
+            env["N_TRUCK"] = str(int(n_truck))
+        if n_drone is not None:
+            env["N_DRONE"] = str(int(n_drone))
         solver_bin = env.get("SOLVER_BIN", "C_Version/read_data_function2")
         cmd = [solver_bin, instance, str(a), str(l), seed_path]
         p = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -336,6 +345,16 @@ def _fmt_float(v: Optional[float]) -> str:
     return s
 
 
+def _parse_optional_int(v: str) -> Optional[int]:
+    s = str(v or "").strip()
+    if not s:
+        return None
+    try:
+        return int(float(s))
+    except Exception:
+        return None
+
+
 def recompute_for_row(row: Dict[str, str]) -> Dict[str, Any]:
     job_id = (row.get("job_id") or "").strip()
     inst = (row.get("instance") or "").strip()
@@ -363,6 +382,8 @@ def recompute_for_row(row: Dict[str, str]) -> Dict[str, Any]:
             _INSTANCE_PATH_CACHE[inst] = inst_file
     a = (row.get("A") or "").strip()
     l = (row.get("L") or "").strip()
+    n_truck = _parse_optional_int(row.get("n_truck", ""))
+    n_drone = _parse_optional_int(row.get("n_drone", ""))
     best_sol = (row.get("best_solution") or "").strip()
     best_multi_sol = (row.get("best_multi_solution") or "").strip()
 
@@ -379,7 +400,14 @@ def recompute_for_row(row: Dict[str, str]) -> Dict[str, Any]:
         return out
 
     if best_sol:
-        ok, msg, mk, avg_used, _max_used, _trips, avg_sortie, total_sortie, avg_truck_wait, avg_drone_wait, legs = validate_with_stats(inst_file, a, l, best_sol)
+        ok, msg, mk, avg_used, _max_used, _trips, avg_sortie, total_sortie, avg_truck_wait, avg_drone_wait, legs = validate_with_stats(
+            inst_file,
+            a,
+            l,
+            best_sol,
+            n_truck=n_truck,
+            n_drone=n_drone,
+        )
         if not ok or mk is None:
             out["best_fitness"] = ""
             out["best_drone_avg_trip_time"] = ""
@@ -420,7 +448,14 @@ def recompute_for_row(row: Dict[str, str]) -> Dict[str, Any]:
         out["best_avg_customers_per_trip"] = ""
 
     if best_multi_sol:
-        ok, msg, mk, avg_used, _max_used, _trips, avg_sortie, total_sortie, avg_truck_wait, avg_drone_wait, legs = validate_with_stats(inst_file, a, l, best_multi_sol)
+        ok, msg, mk, avg_used, _max_used, _trips, avg_sortie, total_sortie, avg_truck_wait, avg_drone_wait, legs = validate_with_stats(
+            inst_file,
+            a,
+            l,
+            best_multi_sol,
+            n_truck=n_truck,
+            n_drone=n_drone,
+        )
         if not ok or mk is None:
             out["best_multi_fitness"] = ""
             out["best_multi_drone_avg_trip_time"] = ""
