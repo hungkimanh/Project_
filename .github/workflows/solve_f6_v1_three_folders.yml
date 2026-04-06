@@ -187,7 +187,6 @@ jobs:
           LS_SHAKE_ON_STAGNATION: ${{ github.event.inputs.ls_shake_on_stagnation || '1' }}
           LS_MAX_SHAKES: ${{ github.event.inputs.ls_max_shakes || '500' }}
           LS_MAX_APPLIED: ${{ github.event.inputs.ls_max_applied || '-1' }}
-          FIX_DEMAND_EQUAL1: "1"
           N_TRUCK: "2"
           N_DRONE: "2"
           SKIP_ATS: "0"
@@ -349,7 +348,6 @@ jobs:
               print(f"SOLVER_TIME_LIMIT_SEC={solver_limit_str}")
               print(f"ATS_SEG={os.environ['ATS_SEG']} ATS_DIV={os.environ['ATS_DIV']} ATS_MAX_ITERS={os.environ['ATS_MAX_ITERS']}")
               print(f"LS_SHAKE_ON_STAGNATION={os.environ['LS_SHAKE_ON_STAGNATION']} LS_MAX_SHAKES={os.environ['LS_MAX_SHAKES']} LS_MAX_APPLIED={os.environ['LS_MAX_APPLIED']}")
-              print(f"FIX_DEMAND_EQUAL1={os.environ['FIX_DEMAND_EQUAL1']}")
               print(f"N_TRUCK={os.environ['N_TRUCK']} N_DRONE={os.environ['N_DRONE']}")
               print(f"SKIP_ATS={os.environ['SKIP_ATS']}")
 
@@ -536,7 +534,7 @@ jobs:
         id: recompute
         run: |
           set +e
-          FIX_DEMAND_EQUAL1=1 N_TRUCK=2 N_DRONE=2 SOLVER_BIN=C_Version/read_data_f6 PARALLEL_JOBS=1 \
+          N_TRUCK=2 N_DRONE=2 SOLVER_BIN=C_Version/read_data_f6 PARALLEL_JOBS=1 \
             python recompute_metrics_from_solutions_csv.py summary/solve_f6_from_augmented_inits_summary.csv
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
