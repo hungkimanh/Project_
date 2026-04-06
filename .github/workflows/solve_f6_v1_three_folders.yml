@@ -1,5 +1,4 @@
-name: Solve F6 On C101 (V5-V6 - Cluster Random Uniform)
-# chay lan 2
+name: Solve F6 Demand Random (30-50-100, A4-L120, x3)
 on:
   push:
   workflow_dispatch:
@@ -7,11 +6,15 @@ on:
       a_values:
         description: "Comma-separated A (M_d) values, e.g. 4,8"
         required: false
-        default: "4,8"
+        default: "4"
       l_values:
         description: "Comma-separated L (L_d) values, e.g. 60,90,120"
         required: false
-        default: "60,90,120"
+        default: "120"
+      runs_per_instance:
+        description: "Number of repeated runs per (instance, A, L)"
+        required: false
+        default: "3"
       solver_time_limit_sec:
         description: "Solver time limit per instance in seconds (capped at 7200)"
         required: false
@@ -43,7 +46,7 @@ on:
       target_jobs:
         description: "Target number of shard jobs to split tasks across"
         required: false
-        default: "256"
+        default: "216"
 
 jobs:
   build-matrix:
@@ -58,11 +61,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build instance matrix for C101 in v5/v6 of 3 folders
+      - name: Build instance matrix for demand random folders (30, 50, 100)
         id: mk
         env:
-          A_VALUES: ${{ github.event.inputs.a_values || '4,8' }}
-          L_VALUES: ${{ github.event.inputs.l_values || '60,90,120' }}
+          A_VALUES: ${{ github.event.inputs.a_values || '4' }}
+          L_VALUES: ${{ github.event.inputs.l_values || '120' }}
+          RUNS_PER_INSTANCE: ${{ github.event.inputs.runs_per_instance || '3' }}
           TARGET_JOBS: ${{ github.event.inputs.target_jobs || '216' }}
         run: |
           python - << 'PY'
@@ -71,7 +75,10 @@ jobs:
 
           a_values_raw = "${{ env.A_VALUES }}"
           l_values_raw = "${{ env.L_VALUES }}"
+          runs_per_instance = int("${{ env.RUNS_PER_INSTANCE }}")
           target_jobs = int("${{ env.TARGET_JOBS }}")
+          if runs_per_instance <= 0:
+              runs_per_instance = 1
           if target_jobs <= 0:
               target_jobs = 1
 
@@ -91,23 +98,19 @@ jobs:
               raise SystemExit("No L values provided (L_VALUES is empty)")
 
           roots = [
-              ("cluster", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v5")),
-              ("cluster", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_cluster/v6")),
-              ("random", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v5")),
-              ("random", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_random/v6")),
-              ("uniform", "v5", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v5")),
-              ("uniform", "v6", pathlib.Path("test_data/data_demand_random_50_batch_all1_equal_uniform/v6")),
+              ("demand_random_30", pathlib.Path("test_data/data_demand_random/30")),
+              ("demand_random_50", pathlib.Path("test_data/data_demand_random/50")),
+              ("demand_random_100", pathlib.Path("test_data/data_demand_random/100")),
           ]
 
           base_tasks = []
-          for group, version, root in roots:
+          for group, root in roots:
               if not root.is_dir():
                   raise SystemExit(f"Missing folder: {root}")
-              for dat in sorted(root.glob("C101*.dat")):
+              for dat in sorted(root.glob("*.dat")):
                   base_tasks.append(
                       {
                           "group": group,
-                          "version": version,
                           "instance_name": dat.stem,
                           "dat": str(dat),
                           "seed": "",
@@ -115,23 +118,19 @@ jobs:
                   )
 
           if not base_tasks:
-              raise SystemExit("No C101*.dat instances found in v5/v6 folders")
+              raise SystemExit("No *.dat instances found in demand random folders 30/50/100")
 
           tasks = []
-          seen_keys = set()
           for t in base_tasks:
               for a in a_values:
                   for l in l_values:
-                      key = (str(t["dat"]), str(a), str(l))
-                      if key in seen_keys:
-                          continue
-                      seen_keys.add(key)
-                      x = dict(t)
-                      x["A"] = a
-                      x["L"] = l
-                      x["run_id"] = 1
-                      x["name_run"] = f'{t["group"]}_{t["version"]}__{t["instance_name"]}__A{a}_L{l}'
-                      tasks.append(x)
+                      for run_id in range(1, runs_per_instance + 1):
+                          x = dict(t)
+                          x["A"] = a
+                          x["L"] = l
+                          x["run_id"] = run_id
+                          x["name_run"] = f'{t["group"]}__{t["instance_name"]}__A{a}_L{l}__run{run_id}'
+                          tasks.append(x)
 
           shard_count = min(target_jobs, len(tasks))
           shards = [{"shard_id": i + 1, "tasks": []} for i in range(shard_count)]
@@ -141,7 +140,7 @@ jobs:
           pathlib.Path("matrix.json").write_text(json.dumps(shards), encoding="utf-8")
           print(
               f"Prepared {len(tasks)} tasks into {shard_count} shard jobs "
-              f"({len(base_tasks)} instances x {len(a_values)} A-values x {len(l_values)} L-values)"
+              f"({len(base_tasks)} instances x {len(a_values)} A-values x {len(l_values)} L-values x {runs_per_instance} runs)"
           )
           PY
 
@@ -440,6 +439,7 @@ jobs:
           PY
 
       - name: Upload run log
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: solve-log-shard-${{ matrix.shard.shard_id }}
@@ -447,9 +447,11 @@ jobs:
             run_logs/*.log
             run_logs/*.summary.json
             run_outputs/**
+          if-no-files-found: ignore
 
   summary:
     needs: [build-matrix, solve]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -460,6 +462,7 @@ jobs:
         run: g++ -std=c++17 -O2 C_Version/Function6.cpp -o C_Version/read_data_f6
 
       - name: Download all solve artifacts
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           path: all_artifacts
@@ -594,7 +597,7 @@ jobs:
       - name: Upload summary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: solve-f6-c101-v5-v6-three-folders-summary
+          name: solve-f6-demand-random-30-50-100-a4-l120-x3-summary
           path: |
             summary/solve_f6_from_augmented_inits_summary.csv
             batch_init_ats_improved_with_multivisit_recompute_failures.csv
