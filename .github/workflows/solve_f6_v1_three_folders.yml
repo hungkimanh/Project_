@@ -1,4 +1,4 @@
-name: Solve F6 Demand Random (30-50-100, A8-L120, x3)
+name: Solve F6 Demand Random (30-50-100, A8-L120, x3) # sửa nhé
 on:
   push:
   workflow_dispatch:
